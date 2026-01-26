@@ -5,11 +5,11 @@
         <a-layout-header class="nav-header">
           <div class="header-container">
             <div class="header-left">
-              <RocketFilled class="logo-icon" />
+              <img src="/logo.png" alt="Logo" class="logo-icon" />
               <span class="logo-text">Chet.WebApi.Template</span>
             </div>
 
-            <div class="header-menu">
+            <div class="header-menu hidden-mobile">
               <a href="#features" class="menu-item">特性</a>
               <a href="#generator" class="menu-item">立即生成</a>
             </div>
@@ -17,20 +17,12 @@
             <div class="header-right">
               <a-space size="middle">
                 <button @click="toggleTheme" class="theme-icon-btn">
-                  <BulbOutlined v-if="themeMode === 'light'" />
-                  <span v-else class="dark-icon"
-                    ><CloudFilled style="color: #a855f7"
-                  /></span>
+                  <BulbFilled
+                    v-if="themeMode === 'dark'"
+                    style="color: #facc15"
+                  />
+                  <BulbOutlined v-else />
                 </button>
-                <a-button
-                  type="primary"
-                  shape="round"
-                  href="https://github.com/qiect/Chet.WebApi.Template"
-                  target="_blank"
-                >
-                  <template #icon><GithubOutlined /></template>
-                  GitHub
-                </a-button>
               </a-space>
             </div>
           </div>
@@ -47,6 +39,19 @@
               自动化构建包含 JWT 认证、EF Core、Redis 缓存及 Serilog
               日志的标准化脚手架
             </p>
+
+            <div class="hero-actions">
+              <a href="#generator" class="btn-action-main sm">
+                <ThunderboltFilled /> 立即生成
+              </a>
+              <a
+                href="https://github.com/qiect/Chet.WebApi.Template"
+                target="_blank"
+                class="btn-action-sub glass sm"
+              >
+                <GithubOutlined /> 查看源码
+              </a>
+            </div>
           </section>
 
           <section id="features" class="section-container">
@@ -61,7 +66,7 @@
                   <h3>高性能架构</h3>
                   <p>
                     基于 .NET 10 分层架构，包含
-                    Core、Application、Infrastructure 等模块。
+                    Application、Core、Infrastructure 等模块。
                   </p>
                 </div>
               </a-col>
@@ -106,7 +111,7 @@
                     <a-form-item label="项目名称" required>
                       <a-input
                         v-model:value="formState.projectName"
-                        placeholder="例如: WebApi"
+                        placeholder="例如: MyProject.WebApi"
                       />
                     </a-form-item>
                     <a-form-item label="架构模板">
@@ -117,8 +122,7 @@
                       </a-select>
                     </a-form-item>
                     <div class="preview-namespace">
-                      <CodeOutlined />
-                      <span
+                      <CodeOutlined />                      <span
                         >{{ formState.companyName || "..." }}.{{
                           formState.projectName || "..."
                         }}</span
@@ -180,22 +184,30 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, nextTick, watch, computed } from "vue";
+import { reactive, ref, nextTick, watch, computed, onMounted } from "vue";
 import { theme, message } from "ant-design-vue";
 import {
-  RocketFilled,
   GithubOutlined,
   CodeOutlined,
   BulbOutlined,
-  CloudFilled,
+  BulbFilled,
+  ThunderboltFilled,
   ThunderboltOutlined,
   SafetyCertificateOutlined,
   DatabaseOutlined,
 } from "@ant-design/icons-vue";
 import { TemplateService } from "./services/TemplateService";
 
-// 主题切换逻辑
+// 主题逻辑
 const themeMode = ref<"light" | "dark">("dark");
+
+// 新增：自动切换主题
+onMounted(() => {
+  const hour = new Date().getHours();
+  // 18:00 到 次日 06:00 自动切换为暗色模式
+  themeMode.value = hour >= 18 || hour < 6 ? "dark" : "light";
+});
+
 const toggleTheme = () => {
   themeMode.value = themeMode.value === "light" ? "dark" : "light";
 };
@@ -246,7 +258,7 @@ const onSubmit = async () => {
       formState.projectName,
       (msg) => addLog(msg),
     );
-    addLog("项目包构建完成，正在启动浏览器下载...", "success");
+    addLog("项目包构建完成，正在启动下载...", "success");
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -261,7 +273,6 @@ const onSubmit = async () => {
 </script>
 
 <style scoped>
-/* 全局背景色过渡 */
 .app-wrapper {
   min-height: 100vh;
   transition:
@@ -292,7 +303,6 @@ const onSubmit = async () => {
   z-index: 100;
   padding: 0;
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 .app-wrapper.light .nav-header {
   background: rgba(255, 255, 255, 0.7);
@@ -300,12 +310,58 @@ const onSubmit = async () => {
 }
 .app-wrapper.dark .nav-header {
   background: rgba(15, 23, 42, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 768px) {
+  /* 通过父级或组合类名提高权重 */
+  .header-menu.hidden-mobile {
+    display: none !important; /* 加 !important 是最保险的做法 */
+  }
+
+  .logo-icon {
+    height: 28px;
+  }
+
+  .logo-text {
+    font-size: 16px;
+    margin-left: 8px;
+  }
+
+  .hero-title {
+    font-size: 32px !important; /* 移动端标题可以再小一点 */
+    line-height: 1.2;
+  }
+}
+
+/* 控制 Logo 图片大小 */
+.logo-icon {
+  height: 32px; /* 固定高度，确保导航栏整洁 */
+  width: auto; /* 宽度按比例自适应 */
+  object-fit: contain; /* 确保图片不被拉伸 */
+  flex-shrink: 0; /* 防止在小屏下被挤压变小 */
+}
+
+/* 确保左侧容器垂直居中 */
+.header-left {
+  display: flex;
+  align-items: center; /* 核心：确保 Logo 和文字对齐 */
+  flex-shrink: 0;
+}
+
+/* 调整文字间距 */
+.logo-text {
+  font-size: 20px;
+  font-weight: 800;
+  margin-left: 12px; /* 增加 Logo 和文字之间的间距 */
+  line-height: 1; /* 消除行高带来的对齐偏差 */
 }
 
 .logo-text {
   font-size: 20px;
   font-weight: 800;
   margin-left: 10px;
+  flex-shrink: 0;
 }
 .header-menu {
   display: flex;
@@ -321,7 +377,6 @@ const onSubmit = async () => {
   color: #3b82f6;
 }
 
-/* 主题图标按钮 */
 .theme-icon-btn {
   background: transparent;
   border: none;
@@ -330,7 +385,7 @@ const onSubmit = async () => {
   padding: 8px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  color: inherit;
 }
 .theme-icon-btn:hover {
   transform: rotate(15deg) scale(1.1);
@@ -340,7 +395,7 @@ const onSubmit = async () => {
 /* Hero Section */
 .hero-section {
   text-align: center;
-  padding: 140px 24px 80px;
+  padding: 140px 24px 60px;
 }
 .hero-badge {
   display: inline-block;
@@ -371,7 +426,52 @@ const onSubmit = async () => {
   margin: 0 auto;
 }
 
-/* 容器与卡片 */
+/* 优化：调小按钮尺寸相关样式 */
+.hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+.btn-action-main.sm {
+  padding: 10px 24px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+.btn-action-sub.sm {
+  padding: 10px 24px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
+.btn-action-main {
+  background: #3b82f6;
+  color: white;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s;
+}
+.btn-action-main:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(59, 130, 246, 0.3);
+  color: white;
+}
+.btn-action-sub {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s;
+  color: inherit;
+}
+.btn-action-sub:hover {
+  transform: translateY(-2px);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* 原有样式保持不变 */
 .section-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -392,7 +492,6 @@ const onSubmit = async () => {
   margin: 12px auto;
   border-radius: 4px;
 }
-
 .glass {
   backdrop-filter: blur(12px);
   border-radius: 24px;
@@ -406,7 +505,6 @@ const onSubmit = async () => {
   border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03);
 }
-
 .feature-card {
   height: 100%;
 }
@@ -423,8 +521,6 @@ const onSubmit = async () => {
 .feature-icon.orange {
   color: #f97316;
 }
-
-/* 生成器表单 */
 .card-tag {
   font-size: 10px;
   font-weight: 800;
@@ -446,8 +542,6 @@ const onSubmit = async () => {
   border-radius: 12px;
   margin-top: 12px;
 }
-
-/* 控制台设计 */
 .console-card {
   background: #1e293b;
   border-radius: 20px;
@@ -485,7 +579,6 @@ const onSubmit = async () => {
   color: #64748b;
   letter-spacing: 1px;
 }
-
 .terminal-body {
   height: 380px;
   padding: 20px;
@@ -520,7 +613,6 @@ const onSubmit = async () => {
   color: #475569;
   letter-spacing: 2px;
 }
-
 .site-footer {
   text-align: center;
   padding: 80px 0;
