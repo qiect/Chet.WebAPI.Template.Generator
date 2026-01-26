@@ -1,6 +1,6 @@
-# Chet WebAPI Template Generator (Web Version)
+# Chet.WebAPI.Template.Generator
 
-基于 Vue 3、Ant Design Vue 和 TypeScript 的 Web 版本项目模板生成器，用于替代原有的 WPF 桌面应用。
+基于 Vue 3、Ant Design Vue 和 TypeScript 的 Chet.WebAPI.Template.Generator 项目模板生成器
 
 ## 功能特性
 
@@ -8,9 +8,7 @@
 - 🎨 使用 Ant Design Vue 组件库
 - 🔧 支持 TypeScript 类型安全
 - 💻 无需安装，浏览器即可使用
-- 📦 一键生成自定义项目模板
-- 🌐 支持从 GitHub 下载模板
-- ☁️ 专为 GitHub Pages 部署优化
+- 📦 一键生成Chet.WebApi.Template项目模板
 
 ## 技术栈
 
