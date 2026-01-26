@@ -20,31 +20,18 @@ export default defineConfig({
 base: '/my-template-generator/',
 ```
 
-### 2. 创建部署脚本
+### 2. 部署工作流
 
-在 `package.json` 中添加一个部署脚本：
+GitHub Actions 工作流 (.github/workflows/build.yml) 会在每次推送到 main 分支时自动构建并部署到 GitHub Pages。
 
-```json
-{
-  "scripts": {
-    "deploy": "npm run build && npx gh-pages -d dist -t true"
-  }
-}
-```
-
-### 3. 部署工作流
-
-GitHub Actions 工作流会在每次推送到 main 分支时自动构建并部署到 GitHub Pages。
-
-### 4. GitHub Pages 设置
+### 3. GitHub Pages 设置
 
 在 GitHub 存储库设置中：
 
 1. 转到 "Pages" 部分
-2. 将源设置为 "Deploy from a branch"
-3. 选择 `gh-pages` 分支和 `/root` 文件夹
-4. 点击 "Save"
+2. 将源设置为 "GitHub Actions"
+3. 配置完成后，工作流会自动部署到 GitHub Pages
 
-### 5. 自定义域名（可选）
+### 4. 自定义域名（可选）
 
 如果要使用自定义域名，请在此处添加 CNAME 文件。
