@@ -27,5 +27,8 @@
     "project-template"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^25.8.0"
+  }
 }

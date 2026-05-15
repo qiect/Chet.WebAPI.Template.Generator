@@ -40,6 +40,68 @@ export class TemplateService {
   }
 
   /**
+   * 代理配置类型
+   */
+  private static readonly CORS_PROXIES = [
+    // URL编码型CORS代理（用于API请求和文件下载）
+    { name: 'allorigins', buildUrl: (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
+    { name: 'corsproxy.io', buildUrl: (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}` },
+    { name: 'codetabs', buildUrl: (url: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}` },
+    { name: 'cors-anywhere', buildUrl: (url: string) => `https://cors-anywhere.herokuapp.com/${url}` },
+  ];
+
+  private static readonly GITHUB_MIRROR_PROXIES = [
+    // 国内GitHub镜像代理（直接拼接URL，用于加速文件下载）
+    { name: 'ghproxy.net', buildUrl: (url: string) => `https://ghproxy.net/${url}` },
+    { name: 'github.akams.cn', buildUrl: (url: string) => `https://github.akams.cn/${url}` },
+    { name: 'gh-proxy.com', buildUrl: (url: string) => `https://gh-proxy.com/${url}` },
+    { name: 'gitproxy.dev', buildUrl: (url: string) => `https://gitproxy.dev/${url}` },
+    { name: 'ghproxy.homeboyc.cn', buildUrl: (url: string) => `https://ghproxy.homeboyc.cn/${url}` },
+  ];
+
+  /**
+   * 是否为开发环境（使用Vite dev server代理，绕过CORS）
+   */
+  private static readonly IS_DEV = import.meta.env.DEV;
+
+  /**
+   * 将任意GitHub URL转换为Vite dev server代理路径
+   * 使用统一的 /gh-proxy/ 端点，Node端自动跟随重定向，彻底避免CORS问题
+   */
+  private static toDevProxyUrl(url: string): string {
+    return `/gh-proxy/${encodeURIComponent(url)}`;
+  }
+
+  /**
+   * 使用代理列表依次尝试请求，返回第一个成功的响应
+   */
+  private async fetchWithProxyFallback(
+    targetUrl: string,
+    proxies: ReadonlyArray<{ name: string; buildUrl: (url: string) => string }>,
+    logLabel: string
+  ): Promise<Response> {
+    let lastError: any = null;
+
+    for (const proxy of proxies) {
+      const proxyUrl = proxy.buildUrl(targetUrl);
+      try {
+        const response = await fetch(proxyUrl);
+        if (response.ok) {
+          console.log(`${logLabel}: 使用代理 ${proxy.name} 成功`);
+          return response;
+        }
+        console.warn(`${logLabel}: 代理 ${proxy.name} 返回状态 ${response.status}`);
+        lastError = new Error(`HTTP ${response.status}`);
+      } catch (error) {
+        lastError = error;
+        console.warn(`${logLabel}: 代理 ${proxy.name} 请求失败`, error);
+      }
+    }
+
+    throw new Error(`${logLabel}失败: ${lastError?.message || '所有代理均不可用'}`);
+  }
+
+  /**
    * 从GitHub获取模板
    * 使用GitHub API和第三方CORS代理来避免CORS问题
    */
@@ -54,36 +116,22 @@ export class TemplateService {
       
       logCallback(`获取 ${config.displayName} (${config.githubRepo}) 最新发布信息...`);
       
-      // 使用GitHub API获取最新release信息
-      // 使用多个CORS代理服务作为备选方案
+      // 第一步：获取GitHub API的release信息
+      // 开发环境：直接通过Vite代理请求，无CORS问题
+      // 生产环境：通过CORS代理请求
       const apiEndpoint = `https://api.github.com/repos/${config.githubOwner}/${config.githubRepo}/releases/latest`;
-      const corsProxyUrls = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(apiEndpoint)}`,
-        `https://corsproxy.io/?${encodeURIComponent(apiEndpoint)}`,
-        `https://cors-anywhere.herokuapp.com/${apiEndpoint}`
-      ];
       
-      let releaseResponse: Response | null = null;
-      let lastError: any = null;
-      
-      // 尝试多个CORS代理
-      for (const proxyUrl of corsProxyUrls) {
-        try {
-          releaseResponse = await fetch(proxyUrl);
-          if (releaseResponse.ok) {
-            break;
-          }
-        } catch (error) {
-          lastError = error;
-          console.warn(`CORS代理请求失败: ${proxyUrl}`, error);
-          continue; // 尝试下一个代理
+      let releaseResponse: Response;
+      if (TemplateService.IS_DEV) {
+        const devProxyUrl = TemplateService.toDevProxyUrl(apiEndpoint);
+        logCallback('开发模式: 使用本地代理请求GitHub API...');
+        releaseResponse = await fetch(devProxyUrl);
+        if (!releaseResponse.ok) {
+          throw new Error(`GitHub API请求失败: HTTP ${releaseResponse.status}`);
         }
+      } else {
+        releaseResponse = await this.fetchWithProxyFallback(apiEndpoint, TemplateService.CORS_PROXIES, '获取Release信息');
       }
-      
-      if (!releaseResponse || !releaseResponse.ok) {
-        throw new Error(`无法获取 ${config.githubRepo} 的最新发布信息: ${lastError?.message || '所有CORS代理均不可用'}`);
-      }
-      
       const releaseData = await releaseResponse.json();
       
       // GitHub releases可能没有assets，但有zipball_url和tarball_url
@@ -117,32 +165,27 @@ export class TemplateService {
       
       logCallback(`找到资源: ${asset.name}, 大小: ${asset.size > 0 ? (asset.size / 1024 / 1024).toFixed(2) + ' MB' : '未知'}`);
       
-      // 使用多个CORS代理下载ZIP文件
-      const downloadProxyUrls = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(asset.browser_download_url)}`,
-        `https://corsproxy.io/?${encodeURIComponent(asset.browser_download_url)}`,
-        `https://cors-anywhere.herokuapp.com/${asset.browser_download_url}`
-      ];
-      
-      let downloadResponse: Response | null = null;
-      lastError = null;
-      
-      // 尝试多个CORS代理
-      for (const proxyUrl of downloadProxyUrls) {
-        try {
-          downloadResponse = await fetch(proxyUrl);
-          if (downloadResponse.ok) {
-            break;
-          }
-        } catch (error) {
-          lastError = error;
-          console.warn(`下载代理请求失败: ${proxyUrl}`, error);
-          continue; // 尝试下一个代理
+      // 第二步：下载文件
+      // 开发环境：通过Vite代理下载，无CORS问题且速度快
+      // 生产环境：优先国内镜像代理，再回退CORS代理
+      let downloadResponse: Response;
+      if (TemplateService.IS_DEV) {
+        const devProxyUrl = TemplateService.toDevProxyUrl(asset.browser_download_url);
+        logCallback('开发模式: 使用本地代理下载模板文件...');
+        downloadResponse = await fetch(devProxyUrl);
+        if (!downloadResponse.ok) {
+          throw new Error(`模板文件下载失败: HTTP ${downloadResponse.status}`);
         }
-      }
-      
-      if (!downloadResponse || !downloadResponse.ok) {
-        throw new Error(`下载失败: ${lastError?.message || '所有CORS代理均不可用'}`);
+      } else {
+        const downloadProxies = [
+          ...TemplateService.GITHUB_MIRROR_PROXIES,
+          ...TemplateService.CORS_PROXIES,
+        ];
+        downloadResponse = await this.fetchWithProxyFallback(
+          asset.browser_download_url,
+          downloadProxies,
+          '下载模板文件'
+        );
       }
       
       const blob = await downloadResponse.blob();
